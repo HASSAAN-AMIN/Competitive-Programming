@@ -55,6 +55,7 @@ int main() {
             }
         }
     }
+    // this should work ig 
     reverse(ans.begin(), ans.end());
     cout << ans << '\n';
 
