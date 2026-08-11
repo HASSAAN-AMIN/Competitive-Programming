@@ -22,6 +22,28 @@ int main() {
         cin >> arr[i];
     }
 
+    // c's + v's - c's_in_stroke?
+
+    // dp state best score + cs in segment
+    //
+    // ans = cnt + best 
+    const int sz=  5e5 + 1 ;
+    vector<int> dp( sz , 0) ;
+    int cnt  = 0 ;
+    int ans = 0 ;
+    for (int i = 0; i <n; i++) {
+
+        if( arr[i] == c){
+            cnt++;
+            continue;
+        }
+
+        dp[arr[i]] = max( dp[arr[i]] , cnt)  +1 ;         
+
+        ans = max( ans , dp[arr[i]] - cnt) ;
+    }
+    cout << cnt + ans << '\n' ;
+
     
 
     return 0;
