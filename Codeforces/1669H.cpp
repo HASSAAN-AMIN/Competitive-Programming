@@ -41,6 +41,7 @@ int main() {
                         if( arr[i]&(1 << bit))
                             continue;
                         arr[i] |= (1 << bit);
+                        
                         k--;
                     }
                 }
