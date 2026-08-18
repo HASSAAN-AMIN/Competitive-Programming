@@ -67,7 +67,17 @@ double remoteReady[MAXK];
 
 int inFlightUp[MAXK];
 double inFlightUpWork[MAXK];
-double inFlightDecWork[MAXK];  // CANDIDATE F
+double inFlightDecWork[MAXK];
+
+// P_PROC SPLIT (candidate): tracks a P_PROC that was deliberately split
+// into two pieces so a ready D_PROC batch could run in between, rather
+// than sitting blocked behind one long unsplit prefill computation.
+// -1 means no split in progress on that remote. At most one split per
+// request, ever -- the remote always finishes the second (final) piece
+// unconditionally the next time it's free, so a request can be deferred
+// for at most one D_PROC opportunity, never indefinitely.
+int pprocResumeRid[MAXK];
+int pprocResumePos[MAXK];
 
 deque<int> qPPre;
 deque<int> qPPost;
@@ -123,7 +133,7 @@ int pickBestRemoteFor(int /*rid*/) {
         double ready = max(now_t, remoteReady[k]);
 
         ready += inFlightUpWork[k];
-        ready += inFlightDecWork[k];  // CANDIDATE F
+        ready += inFlightDecWork[k];
 
         for (int id : qPProc[k]) {
             ready += S + table.lookup(1, (double)Lin[id]);
@@ -156,13 +166,31 @@ void eraseFromQueue(deque<int>& q, int id) {
     }
 }
 
-// CANDIDATE F: mark D_PRE members' future decode work as already
-// committed to their remote, before it becomes visible in qDProc.
+// Marks a D_PRE group's future decode work as already committed to each
+// remote it touches, before it becomes visible in qDProc.
+//
+// CORRECTED from the earlier attempt: that version added a full
+// S + duration(batch=1) for EVERY member, which double-counts S -- S is
+// only paid once per eventual batch task, not once per member, under
+// full batching. This adds S exactly once per remote represented in the
+// group, plus a small per-member marginal duration (the slope of the
+// decode_proc column near batch size 1-2, not a whole size-1 task's
+// duration), which is a much closer approximation of the real
+// incremental cost.
 void markDPreDispatched(const deque<int>& q) {
-    double decMarginal = S + table.lookup(4, 1.0);
+    if (q.empty()) return;
+    static int cnt[MAXK];
+    for (int k = 0; k < K; ++k) cnt[k] = 0;
     for (int r : q) {
         int k = remoteOf_[r];
-        if (k >= 0) inFlightDecWork[k] += decMarginal;
+        if (k >= 0 && k < K) cnt[k]++;
+    }
+    double marginal = table.lookup(4, 2.0) - table.lookup(4, 1.0);
+    if (marginal < 0.0) marginal = 0.0;
+    for (int k = 0; k < K; ++k) {
+        if (cnt[k] > 0) {
+            inFlightDecWork[k] += S + marginal * (double)cnt[k];
+        }
     }
 }
 
@@ -190,6 +218,8 @@ int main() {
         inFlightUp[k] = 0;
         inFlightUpWork[k] = 0.0;
         inFlightDecWork[k] = 0.0;
+        pprocResumeRid[k] = -1;
+        pprocResumePos[k] = 0;
     }
 
     for (int i = 0; i < MAXR; ++i) {
@@ -338,7 +368,15 @@ int main() {
 
                 } else {
                     if (dir == "UP") {
+                        // Mirrors markDPreDispatched exactly: this transfer
+                        // is precisely one remote's slice of one D_PRE
+                        // dispatch, so it removes exactly what that call
+                        // added for this remote.
+                        double marginal = table.lookup(4, 2.0) - table.lookup(4, 1.0);
+                        if (marginal < 0.0) marginal = 0.0;
+                        double dec = S + marginal * (double)rids.size();
                         for (int r : rids) qDProc[remote].push_back(r);
+                        inFlightDecWork[remote] = max(0.0, inFlightDecWork[remote] - dec);
                     } else {
                         for (int r : rids) qDPost.push_back(r);
                     }
@@ -375,104 +413,25 @@ int main() {
         // ---------------- local computer E ----------------
         if (freeE) {
             if (waitingDominant) {
-                // CANDIDATE I: the D_PRE/P_PRE "feed an about-to-be-idle
-                // remote" boost that was just validated in
-                // aggressiveThroughput (tests #6/#13, +28 points) has no
-                // equivalent here at all -- this branch was pure
-                // earliest-deadline with zero awareness that remotes
-                // exist. That's the most likely explanation for why tests
-                // 3/4/5/9/14 (low norm_tp, unaffected by that fix) are
-                // still capped: this regime can leave a remote idle for a
-                // request that's barely urgent while a bigger, more
-                // urgent-adjacent action sits waiting, purely because its
-                // deadline number happens to be marginally later.
-                //
-                // Fix, kept safe two ways:
-                //  1) Laxity gate: if ANY candidate's laxity (deadline -
-                //     now - its own duration) is negative -- it cannot
-                //     make its deadline even starting this instant --
-                //     fall back to the exact original earliest-deadline
-                //     choice. Byte-identical to the confirmed 15604
-                //     behavior whenever something is in real danger.
-                //  2) Only within that safety net does an idle remote get
-                //     an extra pull toward whichever local action (P_PRE
-                //     or D_PRE) would feed it -- P_POST/D_POST never feed
-                //     a remote, so they get no boost.
-                int t0id = -1; double t0dl = 1e100;
-                for (int id : qPPre) {
-                    double dl = arrivalT[id] + SLO1;
-                    if (dl < t0dl) { t0dl = dl; t0id = id; }
-                }
-                int t1id = -1; double t1dl = 1e100;
-                for (int id : qPPost) {
-                    double dl = arrivalT[id] + SLO1;
-                    if (dl < t1dl) { t1dl = dl; t1id = id; }
-                }
-                double t2dl = 1e100;
-                for (int id : qDPre) {
-                    double dl = gapStart[id] + SLO2;
-                    if (dl < t2dl) t2dl = dl;
-                }
-                double t3dl = 1e100;
-                for (int id : qDPost) {
-                    double dl = gapStart[id] + SLO2;
-                    if (dl < t3dl) t3dl = dl;
-                }
-
-                bool has0 = !qPPre.empty(), has1 = !qPPost.empty(),
-                     has2 = !qDPre.empty(), has3 = !qDPost.empty();
-
-                double dur0 = has0 ? table.lookup(0, (double)Lin[t0id]) : 0.0;
-                double dur1 = has1 ? table.lookup(2, (double)Lin[t1id]) : 0.0;
-                int m2 = (int)qDPre.size();
-                double dur2 = has2 ? table.lookup(3, (double)m2) : 0.0;
-                int m3 = (int)qDPost.size();
-                double dur3 = has3 ? table.lookup(5, (double)m3) : 0.0;
-
-                double lax0 = has0 ? (t0dl - now_t - dur0) : 1e100;
-                double lax1 = has1 ? (t1dl - now_t - dur1) : 1e100;
-                double lax2 = has2 ? (t2dl - now_t - dur2) : 1e100;
-                double lax3 = has3 ? (t3dl - now_t - dur3) : 1e100;
-                double minLax = min(min(lax0, lax1), min(lax2, lax3));
-
                 int bestType = -1;
                 int bestId = -1;
+                double bestDeadline = 1e100;
 
-                if (minLax < 0.0) {
-                    double bestDeadline = 1e100;
-                    if (has0 && t0dl < bestDeadline) { bestDeadline = t0dl; bestType = 0; bestId = t0id; }
-                    if (has1 && t1dl < bestDeadline) { bestDeadline = t1dl; bestType = 1; bestId = t1id; }
-                    if (has2 && t2dl < bestDeadline) { bestDeadline = t2dl; bestType = 2; }
-                    if (has3 && t3dl < bestDeadline) { bestDeadline = t3dl; bestType = 3; }
-                } else {
-                    bool anyIdleRemote = false;
-                    for (int k = 0; k < K; ++k) {
-                        if (freeC[k] && qPProc[k].empty() && qDProc[k].empty()) {
-                            anyIdleRemote = true;
-                            break;
-                        }
-                    }
-                    const double IDLE_FEED_BOOST = 6.0;
-
-                    double bestDensity = -1.0;
-                    if (has0) {
-                        double d = 1.0 / dur0;
-                        if (anyIdleRemote) d *= IDLE_FEED_BOOST;
-                        if (d > bestDensity) { bestDensity = d; bestType = 0; bestId = t0id; }
-                    }
-                    if (has1) {
-                        double d = 1.0 / dur1;
-                        if (d > bestDensity) { bestDensity = d; bestType = 1; bestId = t1id; }
-                    }
-                    if (has2) {
-                        double d = (double)m2 / dur2;
-                        if (anyIdleRemote) d *= IDLE_FEED_BOOST;
-                        if (d > bestDensity) { bestDensity = d; bestType = 2; }
-                    }
-                    if (has3) {
-                        double d = (double)m3 / dur3;
-                        if (d > bestDensity) { bestDensity = d; bestType = 3; }
-                    }
+                for (int id : qPPre) {
+                    double dl = arrivalT[id] + SLO1;
+                    if (dl < bestDeadline) { bestDeadline = dl; bestType = 0; bestId = id; }
+                }
+                for (int id : qPPost) {
+                    double dl = arrivalT[id] + SLO1;
+                    if (dl < bestDeadline) { bestDeadline = dl; bestType = 1; bestId = id; }
+                }
+                for (int id : qDPre) {
+                    double dl = gapStart[id] + SLO2;
+                    if (dl < bestDeadline) { bestDeadline = dl; bestType = 2; bestId = id; }
+                }
+                for (int id : qDPost) {
+                    double dl = gapStart[id] + SLO2;
+                    if (dl < bestDeadline) { bestDeadline = dl; bestType = 3; bestId = id; }
                 }
 
                 if (bestType == 0) {
@@ -541,7 +500,31 @@ int main() {
 
                 if (!qPPost.empty()) {
                     int b = qPPost.front();
-                    sc_ppost = w_c * urg1(b) + POST_BONUS + w_tp * PREFILL_TP_BONUS;
+
+                    // ANTI-STARVATION: P_PRE gets w_tp*ADM_IDLE_BONUS
+                    // (1.0) whenever a remote is idle, and D_PRE now gets
+                    // w_tp*1.20 in that same situation (the fix that
+                    // gained +28 points). P_POST has never gotten any
+                    // such boost -- its score is a small flat constant
+                    // (POST_BONUS + w_tp*PREFILL_TP_BONUS). At typical
+                    // aggressiveThroughput weights that's roughly 10x
+                    // smaller than what P_PRE/D_PRE get when idle, so
+                    // whenever a remote is idle, P_POST can lose the
+                    // priority race every single time.
+                    //
+                    // That matters because P_POST is what unblocks D_PRE
+                    // in the first place (P_POST completion is what
+                    // pushes a request into qDPre) -- so a starved P_POST
+                    // can mean D_PRE's own idle-remote boost has nothing
+                    // new to batch, partially offsetting that fix's
+                    // benefit. This only activates once a real backlog
+                    // (>=2 waiting) is visible, so it can't change
+                    // behavior in the common case where P_POST already
+                    // gets serviced promptly.
+                    double postBonus = PREFILL_TP_BONUS;
+                    if ((int)qPPost.size() >= 2) postBonus = 1.0;
+
+                    sc_ppost = w_c * urg1(b) + POST_BONUS + w_tp * postBonus;
                 }
 
                 if (!qDPre.empty()) {
@@ -742,24 +725,32 @@ int main() {
                 }
 
             } else if (aggressiveThroughput) {
+                bool hasResume = (pprocResumeRid[k] != -1);
+                bool hasPWork = !qPProc[k].empty() || hasResume;
+                bool hasDWork = !qDProc[k].empty();
+
                 double sc_pproc = -1e18, sc_dproc = -1e18;
 
-                if (!qPProc[k].empty()) {
-                    int b = qPProc[k].front();
+                if (hasPWork) {
+                    int b = hasResume ? pprocResumeRid[k] : qPProc[k].front();
                     sc_pproc = w_c * urg1(b) + w_tp * PREFILL_TP_BONUS;
                 }
-                if (!qDProc[k].empty()) {
+                if (hasDWork) {
                     int b = qDProc[k].front();
                     sc_dproc = w_c * urg2(b) + POST_BONUS * 0.5 + w_tp * DECODE_TP_BONUS;
                 }
 
-                if (qPProc[k].empty() && qDProc[k].empty()) continue;
+                if (!hasPWork && !hasDWork) continue;
 
+                // Unchanged from the confirmed-best doD heuristic, except
+                // qPProc[k].empty() is replaced with !hasPWork so a
+                // pending split resume counts as "P side has work,"
+                // exactly like a fresh candidate would.
                 bool doD;
-                if (qDProc[k].empty()) {
+                if (!hasDWork) {
                     doD = false;
                     starvedPProcJustRun[k] = 0;
-                } else if (qPProc[k].empty()) {
+                } else if (!hasPWork) {
                     doD = true;
                     starvedPProcJustRun[k] = 0;
                 } else {
@@ -781,13 +772,46 @@ int main() {
                     qDProc[k].clear();
                     freeC[k] = false;
                     remoteReady[k] = now_t + S + table.lookup(4, (double)m);
+                } else if (hasResume) {
+                    // CANDIDATE: finish the previously split P_PROC now.
+                    // Always dispatches the final piece unconditionally --
+                    // no further splitting, no further deferral.
+                    int rid = pprocResumeRid[k];
+                    int ls = pprocResumePos[k];
+                    int le = num_layers;
+                    lines.push_back("C" + to_string(k) + " P PROC " + to_string(ls) + " " +
+                                    to_string(le) + " " + to_string(k) + " " + to_string(rid));
+                    freeC[k] = false;
+                    double pieceDur = (double)(le - ls) / (double)num_layers *
+                                       table.lookup(1, (double)Lin[rid]);
+                    remoteReady[k] = now_t + S + pieceDur;
+                    pprocResumeRid[k] = -1;
                 } else {
                     int rid = qPProc[k].front();
-                    qPProc[k].pop_front();
 
-                    lines.push_back("C" + to_string(k) + " P PROC 0 " + to_string(num_layers) + " " + to_string(k) + " " + to_string(rid));
-                    freeC[k] = false;
-                    remoteReady[k] = now_t + S + table.lookup(1, (double)Lin[rid]);
+                    // CANDIDATE: split only when there is real decode work
+                    // that would otherwise have to wait out this entire
+                    // P_PROC. num_layers >= 2 is required (splitting is
+                    // impossible otherwise, per the protocol's own rule).
+                    bool shouldSplit = (num_layers >= 2) && hasDWork;
+
+                    if (shouldSplit) {
+                        qPProc[k].pop_front();
+                        int le = (num_layers + 1) / 2;
+                        lines.push_back("C" + to_string(k) + " P PROC 0 " + to_string(le) + " " +
+                                        to_string(k) + " " + to_string(rid));
+                        freeC[k] = false;
+                        double pieceDur = (double)le / (double)num_layers *
+                                           table.lookup(1, (double)Lin[rid]);
+                        remoteReady[k] = now_t + S + pieceDur;
+                        pprocResumeRid[k] = rid;
+                        pprocResumePos[k] = le;
+                    } else {
+                        qPProc[k].pop_front();
+                        lines.push_back("C" + to_string(k) + " P PROC 0 " + to_string(num_layers) + " " + to_string(k) + " " + to_string(rid));
+                        freeC[k] = false;
+                        remoteReady[k] = now_t + S + table.lookup(1, (double)Lin[rid]);
+                    }
                 }
 
             } else {
