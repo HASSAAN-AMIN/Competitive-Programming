@@ -48,7 +48,7 @@ int main() {
             int idx = 0 ;
             int big = -1;
             for (int j = 0; j < arr[i].size(); j++) {
-                
+
                 if( arr[i][j] -j >=  big - idx  ){ // = imp very guess so 
                     big = arr[i][j] ;
                     idx = j ;
@@ -68,6 +68,7 @@ int main() {
         int l = req[0] ;
         int r = req[n-1] ;
 
+        
         // 0000011111 type binary search
         while(l < r){
             int mid = l + (r-l)/2 ;
