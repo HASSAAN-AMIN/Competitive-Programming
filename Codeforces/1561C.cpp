@@ -48,6 +48,7 @@ int main() {
             int idx = 0 ;
             int big = -1;
             for (int j = 0; j < arr[i].size(); j++) {
+                
                 if( arr[i][j] -j >=  big - idx  ){ // = imp very guess so 
                     big = arr[i][j] ;
                     idx = j ;
