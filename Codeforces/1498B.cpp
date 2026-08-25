@@ -7,6 +7,9 @@
 #include<algorithm>
 #include <cmath>
 #include <numeric>
+#include <set>
+
+
 
 using namespace std;
 
@@ -17,7 +20,7 @@ int main() {
     int t;
     cin >> t;
     while(t--){
-    // for (int i = 0; i < t; i++) {
+        // for (int i = 0; i < t; i++) {
         // if(i == 12){
         //     int n;
         //     cin >> n;
@@ -38,35 +41,38 @@ int main() {
         int w;
         cin >> w ;
 
+        multiset<int> ss; 
         // int ll = log2(w );
         // w = (1 << ll) ;
         // cout  << "w is  : " << w << '\n' ;
 
-        vector<int> arr(n);
+        // vector<int> arr(n);
         
         for (int i = 0; i < n; i++) {
-            cin >> arr[i];
+            //cin >> arr[i];
+            int x  ;
+            cin >> x ;
+            ss.insert(x) ;
         }
-        int cnt = 0 ;
-        sort( arr.begin() , arr.end()) ;
-        long long  sum = 0 ;
-        for (int i = n-1; i >= 0 ; i--) {
-            if( sum + arr[i] > w){
-                sum = 0 ;
-                cnt++;
-            }else{
-                sum += arr[i]; 
-            }
-        }
-        if( sum > w)
-            cnt++;
-        cout << cnt +1 << '\n' ;
+        // int cnt = 0 ;
+
+        // sort( arr.begin() , arr.end()) ;
+        // long long  sum = 0 ;
+        // for (int i = n-1; i >= 0 ; i--) {
+        //     if( sum + arr[i] > w){
+        //         sum = 0 ;
+        //         cnt++;
+        //     }else{
+        //         sum += arr[i]; 
+        //     }
+        // }
+        // if( sum > w)
+        //     cnt++;
+        // cout << cnt +1 << '\n' ;
 
 
-     //   long long x =  accumulate( arr.begin() , arr.end() , 0ll ) ;
-
-     //   cout << ceil((x*1.0f) / w) << '\n' ;
-
+        //   long long x =  accumulate( arr.begin() , arr.end() , 0ll ) ;
+        //   cout << ceil((x*1.0f) / w) << '\n' ;
         // sort( arr.begin() , arr.end()) ;
         // int ans = 0 ;   
         // vector<bool> vis( n , false) ;
@@ -77,8 +83,26 @@ int main() {
         //     int r = n-1 ;
         // }
 
+        int ans =  1 ;
+        int crnt =  w; 
+        while( !ss.empty()){
+
+            auto x = ss.upper_bound(crnt)  ; 
+
+            if( x == ss.begin()){
+                crnt =  w ;
+                ans++;
+            }else{
+                auto y = prev(x);
+                crnt -=  *y ;
+                ss.erase(y);
+            }
+
+        }
+        cout << ans << '\n' ;
+
 
     }
 
     return 0;
-}
+} 
