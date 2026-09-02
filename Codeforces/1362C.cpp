@@ -15,14 +15,25 @@ int main() {
     int t;
     cin >> t;
     while(t--){
-        int n;
-        cin >> n;
+        
+        long long n;
+        cin >> n ;
 
-        vector<int> arr(n);
-
-        for (int i = 0; i < n; i++) {
-            cin >> arr[i];
+        //  0 0 0 0
+        //  0 0 0 1
+        //  0 0 1 0
+        //  0 0 1 1
+        //  0 1 0 0
+        //  0 1 0 1
+        long long ans  = 0 ;
+        for (int i =  63 ;  i >= 0; i--) {
+            if ( n & (1ll << i )){
+                ans += (1ll<<(i+1)) -1 ;
+                
+            }
         }
+        cout << ans << '\n' ;
+        
 
         
     }
