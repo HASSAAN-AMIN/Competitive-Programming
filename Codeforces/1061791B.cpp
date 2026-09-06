@@ -54,6 +54,7 @@ int main() {
                         if (arr[j] - arr[pre] > d) 
                             sus2 = true;
                         pre = -1;
+                        
                     }
                 }
 
