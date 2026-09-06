@@ -54,7 +54,7 @@ int main() {
                         if (arr[j] - arr[pre] > d) 
                             sus2 = true;
                         pre = -1;
-                        
+
                     }
                 }
 
@@ -65,6 +65,7 @@ int main() {
             }
         }
 
+        
         if( sus )
             cout << "NO\n";
         else
