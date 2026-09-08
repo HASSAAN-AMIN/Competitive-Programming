@@ -14,6 +14,13 @@ int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
+    int biggi = 2e5 +1 ;
+    vector<long long> fact(biggi );
+    fact[0] = fact[1] = 1 ;
+    for (int i = 2; i < biggi; i++) {
+        fact[i] = (fact[i-1]*i)%MOD; 
+    }
+
     int t;
     cin >> t;
     while(t--){
@@ -54,14 +61,33 @@ int main() {
         // all of the nums should have that bit turned on?
         // how many bits on  for all
 
-        int ans =  0;
-        
+
+        // if there is a solution for turned bit
+        // then every one has all that bits
+        // so  ? 
+        // so any arrangement would work?
 
 
+        // take toatal and of the array
+        // yeah 
+        // cnt them
+        // fix 1 in start 1 in end
+        // and the arrangements
+        // we need fact
+        // precompute that
+
+        int x = arr[0];
         for (int i = 0; i < n; i++) {
-            
-
+            x &= arr[i];
         }
+
+        int cnt=  0;
+        for (int i = 0; i < n; i++) {
+            if( arr[i] ==x)
+                cnt++;
+        }
+
+        cout << ((((1ll*cnt)*(cnt-1ll))%MOD)*(fact[n-2]))%MOD << '\n';
 
         
     }
