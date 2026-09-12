@@ -1,7 +1,8 @@
+
 # Competitive-Programming
+This repo contains my accepted(most of them) solutions for Codeforces(mostly) and other problems from other platforms
 
-
-This repo contains my accepted(most of them) solutions for Codeforces(mostly) and other  problems from  other platforms
+<img align="right" src="https://codeforces-readme-stats.vercel.app/api/card?username=hexshu" width="350" />
 
 I upload my solutions here to:
 
@@ -10,6 +11,10 @@ I upload my solutions here to:
 - Maintain a clean archive of solved problems  
 - Share code with others for learning  
 - (Tbh to know how github works 😭💀)(ik lowkey but yk to get better)
+
+<br clear="right"/>
+
+
 ---
 
 ##  Structure
