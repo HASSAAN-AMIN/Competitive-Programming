@@ -1,4 +1,4 @@
-
+![Codeforces Badge](https://codeforces-readme-stats.vercel.app/api/badge?username=hexshu)
 # Competitive-Programming
 This repo contains my accepted(most of them) solutions for Codeforces(mostly) and other problems from other platforms
 
