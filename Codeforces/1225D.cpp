@@ -119,6 +119,7 @@ int main() {
                 if(cnt &&  cnt%k != 0){
                     pair<int ,int > p = {primes[j] , cnt%k} ;
                     in.push_back(p);
+                    
                 }
             }
             // what we require?
