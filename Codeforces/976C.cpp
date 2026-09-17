@@ -1,0 +1,35 @@
+/* 
+                بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ   
+    In the name of Allah, the Most Gracious, the Most Merciful.
+*/
+#include <iostream>
+#include<vector>
+#include<algorithm>
+
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int t = 1;
+    // cin >> t;
+    while(t--){
+        int n;
+        cin >> n;
+
+        int k = n;
+
+        // 1e9 no difference arrys
+        // would use coordinate compression type smth else
+        while(k--){
+            int l , r ;
+            cin >> l >> r;
+
+        }
+
+        
+    }
+
+    return 0;
+}
