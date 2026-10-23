@@ -26,7 +26,7 @@ int main() {
             cin >> arr[i];
         }
         sort( arr.begin() , arr.end() ) ;
-        vector<int> brr(m);
+        vector<long long> brr(m);
         for (int i = 0; i < m; i++) {
             cin >> brr[i];
         }

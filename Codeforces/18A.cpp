@@ -10,8 +10,9 @@ using namespace std;
 
 
 
-bool is( int[]arr ){
+bool is( int arr[] ){
 
+    
 }
 
 int main() {
