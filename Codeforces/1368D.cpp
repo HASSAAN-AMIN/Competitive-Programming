@@ -96,8 +96,6 @@ void solve() {
 
     cout << ans << '\n' ;
 
-    
-    
 }
 
 int main() {
