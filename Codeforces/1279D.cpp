@@ -62,8 +62,6 @@ bool chmax(T &a, T b) {
     return true;
 }
 
-
-
 ll pow( int a , int b){
     ll res=  1 ;
     
