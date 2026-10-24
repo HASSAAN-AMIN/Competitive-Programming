@@ -60,6 +60,29 @@ bool chmax(T &a, T b) {
     return true;
 }
 
+
+
+bool foo( int u , int k ,  vector<int>& arr ){
+
+    int now = 0 ;
+    int cnt = 1 ;
+
+    for( auto v : arr){
+
+        if( now + v > u){
+            cnt++;
+            now = v ;
+        }else{
+            now += v;
+        }
+    }
+    return cnt <= k ;
+
+}
+
+
+
+
 void solve() {
     int n;
     cin >> n;
@@ -67,8 +90,6 @@ void solve() {
     cin.ignore();
     string s;
     getline(cin , s) ;
-
-
 
     int cnt = 0 ;
     vector<int> arr; 
@@ -108,7 +129,41 @@ void solve() {
     // fun
     // 3 2 3
 
+    // height is given
+
+    // construct
+    // height ->
+    // small   mediumm   good   large
+    // widht ->
+    // large    good    medium   small
+
+    // we have fix height
+    //   we need last T actually
+
+    //for low
+
+    // bruhh its actuall 
+    // FFFFTTTTTTTTTT
+    // bs on width not height
+    // also height is no more than k 
+
     
+   //  sort(all(arr));
+    int r = s.size();
+    int l = *max_element( all(arr)) ;
+
+    while( l < r){
+        int m = l + (r-l)/2 ;
+
+        if( foo(m , n,  arr)){
+            r = m;
+        }else{
+            l = m+1; 
+        }
+    }
+    cout<< l << '\n'; 
+
+
     
 }
 
@@ -121,7 +176,7 @@ int main() {
 #endif
 
     int t = 1;
-    cin >> t;
+    //cin >> t;
 
     while (t--) {
         solve();
