@@ -72,7 +72,7 @@ void solve() {
     int a = 0;
     int b = 0;
 
-    bool big = ask( 0 ,0 ) ;
+    bool big = (ask( 0 ,0 ) == 1 ) ;
     
     for (int i = 29 ; i >=  0 ; i--) {
 
