@@ -73,6 +73,7 @@ ll foo( ll x){
 
     ll u = 63- __builtin_clzll(x) ;
 
+    
 
     ll a = foo(x - (1LL << u) + 2) + u + 1;
     ll b = (1ll << (u+1)) - x+ u ;
