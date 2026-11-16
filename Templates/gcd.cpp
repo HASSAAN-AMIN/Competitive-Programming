@@ -28,7 +28,6 @@ int gcd(int a, int b) {
 // TC log( a*b)
 
 
-
 int main() {
     // ios::sync_with_stdio(false);
     // cin.tie(nullptr);

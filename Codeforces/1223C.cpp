@@ -74,7 +74,7 @@ bool foo( int u , int x ,int a ,int y , int b , ll k ,  vector<int> &arr){
     int cnt2  = u/b;
     // in both
 
-    int cnt3  = u/lcm(a,b) ;
+    ll cnt3  = u/lcm(a,b) ;
 
     cnt1 -= cnt3;
     cnt2 -= cnt3; 
@@ -83,10 +83,10 @@ bool foo( int u , int x ,int a ,int y , int b , ll k ,  vector<int> &arr){
         //int i  =  0 ;
         ll ans  = 0 ;
         for (int i = 0; i < cnt1; i++) {
-            ans += (x*arr[i])/100 ;
+            ans += (1ll*x*arr[i])/100 ;
         }
         for (int i = cnt1 ; i < cnt1+ cnt2; i++) {
-            ans += (y*arr[i])/100 ; 
+            ans += (1ll*y*arr[i])/100 ; 
         }
         return ans >= k ; 
     }
