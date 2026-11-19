@@ -61,6 +61,7 @@ bool chmax(T &a, T b) {
 }
 
 
+
 void solve() {
     int n;
     cin >> n;
@@ -69,11 +70,11 @@ void solve() {
 
     for (int x = 0; x < 3; x++) {
 
-        int need = (x + ans.size()) % 3;
+        int y = (x + ans.size()) % 3;
 
         int v = 2 * n;
 
-        while (v % 3 != need) {
+        while (v % 3 != y) {
             v--;
         }
 
@@ -89,6 +90,8 @@ void solve() {
     }
     cout << '\n';
 }
+
+
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
